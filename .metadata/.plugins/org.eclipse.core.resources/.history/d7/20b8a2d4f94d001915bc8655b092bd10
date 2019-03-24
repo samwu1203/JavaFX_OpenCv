@@ -1,0 +1,156 @@
+package application;
+
+import java.io.ByteArrayInputStream;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.opencv.core.Mat;
+import org.opencv.videoio.VideoCapture;
+import org.opencv.videoio.Videoio;
+import org.opencv.imgcodecs.Imgcodecs;
+
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import org.opencv.core.MatOfByte;
+import utils.ImageFilters;
+
+
+
+/**
+ * The controller for our application, where the application logic is
+ * implemented. It handles the button for starting/stopping the camera and the
+ * acquired video stream.
+ *
+ * @author <a href="mailto:luigi.derussis@polito.it">Luigi De Russis</a>
+ * @author <a href="http://max-z.de">Maximilian Zuleger</a> (minor fixes)
+ * @version 2.0 (2016-09-17)
+ * @since 1.0 (2013-10-20)
+ *
+ */
+public class MyController
+{
+	// the FXML button
+	@FXML
+	private Button playvideo;
+	// the FXML image view
+	@FXML
+	private ImageView currentview;
+	VideoCapture capture=new VideoCapture("C://Users/user/Documents/Program/Python_Opencv/TFT_LCD_3.mp4");//读取视频
+	private ScheduledExecutorService timer;
+	@FXML
+	protected void playVideo(ActionEvent event)
+	{
+//		VideoCapture capture=new VideoCapture("C://Users/user/Documents/Program/Python_Opencv/TFT_LCD_2.mp4");//读取视频
+		if (capture.isOpened()) {
+			double frameCount = capture.get(Videoio.CAP_PROP_FPS);
+			System.out.println("Frame" + frameCount);
+			// 帧率
+			double fps = capture.get(Videoio.CAP_PROP_FPS);
+			System.out.println("fps" + fps);
+			// 时间长度
+			double ms = 1.0 / fps *1000;
+			int m_s=(int) ms;
+			System.out.println("ms" + m_s);
+			Runnable frameGrabber = new Runnable() {
+				@Override
+				public void run()
+				{
+				 Image image = grabFrame();
+				 Platform.runLater(new Runnable()
+				 {
+				  @Override 
+				  public void run() {currentview.setImage(image);}
+				  });
+							System.out.println(currentview);  
+				}
+			};
+			 this.timer = Executors.newSingleThreadScheduledExecutor();
+			 this.timer.scheduleAtFixedRate(frameGrabber, 0, m_s, TimeUnit.MILLISECONDS);
+			 this.playvideo.setText("Process");
+		}
+    }	
+	private Image grabFrame() {
+        Image result = null;
+        Mat webcam_image = new Mat();
+        ImageFilters imagefilter = new ImageFilters();
+ 
+        if (capture.isOpened()) {
+            capture.read(webcam_image);
+ 
+            if (!webcam_image.empty()) {
+            	webcam_image = imagefilter.darkness(webcam_image);
+                result = mat2Image(".png", webcam_image);
+            }
+        else{
+        	System.out.println("已結束");
+//        	this.playvideo.setText("Start");
+  		    this.stopAcquisition();
+//  		    this.capture.open(0);
+         }
+        }
+ 
+        return result;
+    }    
+	public static Image mat2Image(String ext, Mat image) {
+	 MatOfByte buffer = new MatOfByte();
+	 Imgcodecs.imencode(ext, image, buffer);
+	 return new Image(new ByteArrayInputStream(buffer.toArray()));
+	 }
+	private void stopAcquisition()
+	{
+		if (this.timer!=null && !this.timer.isShutdown())
+		{
+			try
+			{
+				// stop the timer
+				this.timer.shutdown();
+				this.timer.awaitTermination(33, TimeUnit.MILLISECONDS);
+			}
+			catch (InterruptedException e)
+			{
+				// log any exception
+				System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
+			}
+		}
+		
+		if (this.capture.isOpened())
+		{
+			// release the camera
+			this.capture.release();
+		}
+	}
+//	public Mat inverse(Mat image) {
+//        int width = image.cols();
+//        int height = image.rows();
+//        int dims = image.channels();
+//        byte[] data = new byte[width*height*dims];
+//        image.get(0, 0, data);
+//
+//        int index = 0;
+//        int r=0, g=0, b=0;
+//        for(int row=0; row<height; row++) {
+ //           for(int col=0; col<width*dims; col+=dims) {
+//                index = row*width*dims + col;
+//                b = data[index]&0xff;
+//                g = data[index+1]&0xff;
+//                r = data[index+2]&0xff;
+//
+//                r = 255 - r;
+//                g = 255 - g;
+//                b = 255 - b;
+//
+//                data[index] = (byte)b;
+//                data[index+1] = (byte)g;
+//                data[index+2] = (byte)r;
+//            }
+//        }
+//
+//        image.put(0, 0, data);
+//        return image;
+//    }
+}
